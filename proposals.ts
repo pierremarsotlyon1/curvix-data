@@ -19,7 +19,18 @@ const main = async () => {
         }`;
   
     const data = (await request("https://api.thegraph.com/subgraphs/name/curvefi/curvevoting4", query)) as any;
-    fs.writeFileSync("./data/proposals.json", JSON.stringify(data.votes));
+
+    const votes = data.votes.map((v: any) => {
+        let metadata = v.metadata;
+        if (metadata) {
+            metadata = JSON.parse(v.metadata).text;
+        }
+        return {
+            ...v,
+            metadata,
+        };
+    })
+    fs.writeFileSync("./data/proposals.json", JSON.stringify(votes));
 }
 
 

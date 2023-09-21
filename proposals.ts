@@ -41,6 +41,8 @@ const main = async () => {
             nayPercentage = Number(nay) * 100 / Number(total);
         }
 
+        const minAcceptQuorum = Number(BigInt(v.minAcceptQuorum) / (10n ** 16n));
+        const supportRequiredPct = Number(BigInt(v.supportRequiredPct) / (10n ** 16n));
 
         return {
             ...v,
@@ -48,6 +50,8 @@ const main = async () => {
             metadata,
             yea: parseFloat(yeaPercentage.toFixed(2)),
             nay: parseFloat(nayPercentage.toFixed(2)),
+            minAcceptQuorum: parseFloat(minAcceptQuorum.toFixed(2)),
+            supportRequiredPct: parseFloat(supportRequiredPct.toFixed(2)),
         };
     });
     fs.writeFileSync("./data/proposals.json", JSON.stringify(votes));

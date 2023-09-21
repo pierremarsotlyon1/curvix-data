@@ -23,13 +23,16 @@ const main = async () => {
     const votes = data.votes.map((v: any) => {
         let metadata = v.metadata;
         if (metadata) {
-            metadata = JSON.parse(v.metadata).text;
+            try {
+                metadata = JSON.parse(v.metadata).text;
+            }
+            catch (e) { }
         }
         return {
             ...v,
             metadata,
         };
-    })
+    });
     fs.writeFileSync("./data/proposals.json", JSON.stringify(votes));
 }
 

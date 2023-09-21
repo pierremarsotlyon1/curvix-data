@@ -8,9 +8,16 @@ on:
 jobs:
   build: # make sure build/ci work properly
     runs-on: ubuntu-latest
+    permissions:
+      # Give the default GITHUB_TOKEN write permission to commit and push the
+      # added or changed files to the repository.
+      contents: write
+
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - run: |
           npm install
       - run: |
           npm run proposals
+      # Commit all changed files back to the repository
+      - uses: stefanzweifel/git-auto-commit-action@v4

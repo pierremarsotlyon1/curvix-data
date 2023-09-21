@@ -20,7 +20,7 @@ const main = async () => {
   
     const data = (await request("https://api.thegraph.com/subgraphs/name/curvefi/curvevoting4", query)) as any;
 
-    const votes = data.votes.map((v: any) => {
+    const votes = data.votes.map((v: any, index: number) => {
         let metadata = v.metadata;
         if (metadata) {
             try {
@@ -30,6 +30,7 @@ const main = async () => {
         }
         return {
             ...v,
+            id: index,
             metadata,
         };
     });

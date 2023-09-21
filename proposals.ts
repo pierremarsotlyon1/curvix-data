@@ -28,10 +28,26 @@ const main = async () => {
             }
             catch (e) { }
         }
+
+        const nay = BigInt(v.nay) / (10n ** 14n);
+        const yea = BigInt(v.yea) / (10n ** 14n);
+
+        const total = nay + yea;
+
+        let yeaPercentage = 0;
+        let nayPercentage = 0;
+        if (total > 0) {
+            yeaPercentage = Number(yea) * 100 / Number(total);
+            nayPercentage = Number(nay) * 100 / Number(total);
+        }
+
+
         return {
             ...v,
             id: index,
             metadata,
+            yea: parseFloat(yeaPercentage.toFixed(2)),
+            nay: parseFloat(nayPercentage.toFixed(2)),
         };
     });
     fs.writeFileSync("./data/proposals.json", JSON.stringify(votes));

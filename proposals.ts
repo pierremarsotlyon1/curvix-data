@@ -1,5 +1,6 @@
 import { request, gql } from 'graphql-request'
 import fs from 'fs';
+import { formatUnits } from 'viem';
 
 const main = async () => {
     const query = gql`{
@@ -17,7 +18,7 @@ const main = async () => {
             castCount
           }
         }`;
-  
+
     const data = (await request("https://api.thegraph.com/subgraphs/name/curvefi/curvevoting4", query)) as any;
 
     const votes = data.votes.map((v: any, index: number) => {
@@ -29,20 +30,25 @@ const main = async () => {
             catch (e) { }
         }
 
-        const nay = BigInt(v.nay) / (10n ** 14n);
-        const yea = BigInt(v.yea) / (10n ** 14n);
+        const nay = parseFloat(formatUnits(v.nay, 18));
+        const yea = parseFloat(formatUnits(v.yea, 18));
 
         const total = nay + yea;
 
         let yeaPercentage = 0;
         let nayPercentage = 0;
         if (total > 0) {
-            yeaPercentage = Number(yea) * 100 / Number(total);
-            nayPercentage = Number(nay) * 100 / Number(total);
+            yeaPercentage = yea * 100 / total;
+            nayPercentage = nay * 100 / total;
         }
 
-        const minAcceptQuorum = Number(BigInt(v.minAcceptQuorum) / (10n ** 16n));
-        const supportRequiredPct = Number(BigInt(v.supportRequiredPct) / (10n ** 16n));
+        const minAcceptQuorum = parseFloat(formatUnits(v.minAcceptQuorum, 18));
+        const supportRequiredPct = parseFloat(formatUnits(v.supportRequiredPct, 18));
+
+        const haveSupport = yeaPercentage >= supportRequiredPct * 100;
+
+        const votingPower = parseFloat(formatUnits(v.votingPower, 18));
+        const haveQuorum = total * 100 / votingPower > minAcceptQuorum * 100;
 
         return {
             ...v,
@@ -50,8 +56,11 @@ const main = async () => {
             metadata,
             yea: parseFloat(yeaPercentage.toFixed(2)),
             nay: parseFloat(nayPercentage.toFixed(2)),
+            haveSupport,
+            haveQuorum,
             minAcceptQuorum: parseFloat(minAcceptQuorum.toFixed(2)),
             supportRequiredPct: parseFloat(supportRequiredPct.toFixed(2)),
+            votingPower
         };
     });
     fs.writeFileSync("./data/proposals.json", JSON.stringify(votes));

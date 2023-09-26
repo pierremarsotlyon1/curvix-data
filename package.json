@@ -7,7 +7,8 @@
   "license": "MIT",
   "scripts": {
     "proposals": "npx ts-node src/proposals.ts",
-    "weeklyFees": "npx ts-node src/weeklyFees.ts"
+    "weeklyFees": "npx ts-node src/weeklyFees.ts",
+    "lockers": "npx ts-node src/lockers.ts"
   },
   "dependencies": {
     "@snapshot-labs/snapshot.js": "^0.4.19",

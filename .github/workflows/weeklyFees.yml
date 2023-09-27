@@ -1,4 +1,4 @@
-name: Proposals mirror
+name: Weekly fees
 run-name: ${{ github.actor }} 🚀
 on:
   workflow_dispatch:

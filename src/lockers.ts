@@ -2,10 +2,16 @@ import { createPublicClient, formatUnits, http, parseAbi } from 'viem'
 import { mainnet } from 'viem/chains'
 import { VE_CRV } from './constants';
 import fs from "fs";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const publicClient = createPublicClient({
     chain: mainnet,
-    transport: http("https://eth.llamarpc.com"),
+    transport: http(`https://mainnet.infura.io/v3/${process.env.INFURA_KEY}`),
+    batch: {
+        multicall: true
+    }
 });
 
 const abi = parseAbi([

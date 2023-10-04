@@ -5,7 +5,7 @@ import fs from "fs";
 
 const publicClient = createPublicClient({
     chain: mainnet,
-    transport: http("https://eth.llamarpc.com")
+    transport: http("https://eth.llamarpc.com"),
 });
 
 const abi = parseAbi([
@@ -30,38 +30,43 @@ const lockers = [
 
 
 const main = async () => {
-    let calls: any[] = [];
+    try {
+        let calls: any[] = [];
 
-    for (const locker of lockers) {
-        calls.push({
-            address: VE_CRV,
-            abi,
-            functionName: 'balanceOf',
-            args: [locker.address]
-        });
-        calls.push({
-            address: VE_CRV,
-            abi,
-            functionName: 'locked',
-            args: [locker.address]
-        });
+        for (const locker of lockers) {
+            calls.push({
+                address: VE_CRV,
+                abi,
+                functionName: 'balanceOf',
+                args: [locker.address]
+            });
+            calls.push({
+                address: VE_CRV,
+                abi,
+                functionName: 'locked',
+                args: [locker.address]
+            });
+        }
+
+        const results: any[] = await publicClient.multicall({ contracts: calls });
+
+        const lockersData: any[] = [];
+        for (const locker of lockers) {
+            const veBalance = formatUnits(results.shift().result, 18);
+            const crvLockedBalance = formatUnits(results.shift().result[0], 18);
+
+            lockersData.push({
+                name: locker.name,
+                veBalance: parseFloat(veBalance),
+                crvLockedBalance: parseFloat(crvLockedBalance),
+            });
+        }
+
+        fs.writeFileSync("./data/lockers.json", JSON.stringify(lockersData));
     }
-
-    const results: any[] = await publicClient.multicall({ contracts: calls });
-
-    const lockersData: any[] = [];
-    for (const locker of lockers) {
-        const veBalance = formatUnits(results.shift().result, 18);
-        const crvLockedBalance = formatUnits(results.shift().result[0], 18);
-
-        lockersData.push({
-            name: locker.name,
-            veBalance: parseFloat(veBalance),
-            crvLockedBalance: parseFloat(crvLockedBalance),
-        });
+    catch (e) {
+        console.error(e);
     }
-
-    fs.writeFileSync("./data/lockers.json", JSON.stringify(lockersData));
 };
 
 main().catch((error) => {

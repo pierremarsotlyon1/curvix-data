@@ -29,6 +29,8 @@ const main = async () => {
                     metadata = JSON.parse(v.metadata).text;
                 }
                 catch (e) { }
+            } else {
+                metadata = "";
             }
 
             const nay = parseFloat(formatUnits(v.nay, 18));

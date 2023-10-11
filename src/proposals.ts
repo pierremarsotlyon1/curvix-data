@@ -27,6 +27,9 @@ const main = async () => {
             if (metadata) {
                 try {
                     metadata = JSON.parse(v.metadata).text;
+                    if (!metadata) {
+                        metadata = "";
+                    }
                 }
                 catch (e) { }
             } else {

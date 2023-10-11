@@ -10,7 +10,7 @@ dotenv.config();
 
 const publicClient = createPublicClient({
     chain: mainnet,
-    transport: http(`https://mainnet.infura.io/v3/${process.env.INFURA_KEY}`),
+    transport: http(`https://eth.llamarpc.com`), // http(`https://mainnet.infura.io/v3/${process.env.INFURA_KEY}`),
     batch: {
         multicall: true
     }

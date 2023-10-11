@@ -26,5 +26,7 @@ jobs:
           npm run proposals
       - run: |
           npm run weeklyFees
+      - run: |
+          npm run gauges
       # Commit all changed files back to the repository
       - uses: stefanzweifel/git-auto-commit-action@v4

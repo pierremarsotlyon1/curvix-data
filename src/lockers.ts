@@ -5,12 +5,14 @@ import fs from "fs";
 import dotenv from "dotenv";
 import { getTokenData } from './utils/defilamma';
 import axios from "axios";
+import { RPC_URL } from './utils/rpc';
+import { CONVEX_LOCKER, CONVEX_UTILS_CONTRACT, CRV_ADDRESS, STAKEDAO_LOCKER, YEARN_LOCKER } from './utils/addresses';
 
 dotenv.config();
 
 const publicClient = createPublicClient({
     chain: mainnet,
-    transport: http(`https://eth.llamarpc.com`), // http(`https://mainnet.infura.io/v3/${process.env.INFURA_KEY}`),
+    transport: http(RPC_URL),
     batch: {
         multicall: true
     }
@@ -28,12 +30,6 @@ const abi = parseAbi([
     'function mainRewardRates() view returns (address[],uint256[],uint256[])',
     'function apr(uint256 rate, uint256 price, uint256 price) view returns (uint256)',
 ]);
-
-const STAKEDAO_LOCKER = "0x52f541764E6e90eeBc5c21Ff570De0e2D63766B6";
-const CONVEX_LOCKER = "0x989AEb4d175e16225E39E87d0D97A3360524AD80";
-const CONVEX_UTILS_CONTRACT = "0xadd2F542f9FF06405Fabf8CaE4A74bD0FE29c673";
-const YEARN_LOCKER = "0xF147b8125d2ef93FB6965Db97D6746952a133934";
-const CRV_ADDRESS = "0xD533a949740bb3306d119CC777fa900bA034cd52";
 
 const lockers = [
     {

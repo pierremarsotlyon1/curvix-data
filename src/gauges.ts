@@ -35,6 +35,7 @@ interface IToken {
 }
 
 interface IPoolToken {
+    id: number;
     address: string;
     decimals: number;
     usdPrice: number;
@@ -197,8 +198,9 @@ const main = async () => {
                 address: pool.address,
                 gaugeAddress: pool.gaugeAddress,
                 lpTokenAddress: pool.lpTokenAddress,
-                tokens: pool.coins.map((coin) => {
+                tokens: pool.coins.map((coin, index) => {
                     return {
+                        id: index,
                         address: coin.address,
                         decimals: parseInt(coin.decimals),
                         symbol: coin.symbol,

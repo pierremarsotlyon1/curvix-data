@@ -188,7 +188,7 @@ const main = async () => {
                 newMinApy = 0;
             }
 
-            if (!pool.gaugeCrvApy) {
+            if (!pool.gaugeCrvApy || pool.gaugeCrvApy[0] === null) {
                 pool.gaugeCrvApy = [0, 0];
             }
 
@@ -204,8 +204,8 @@ const main = async () => {
                         address: coin.address,
                         decimals: parseInt(coin.decimals),
                         symbol: coin.symbol,
-                        usdPrice: coin.usdPrice,
-                        poolBalance: coin.poolBalance,
+                        usdPrice: coin.usdPrice || 0,
+                        poolBalance: coin.poolBalance || "",
                     }
                 }),
                 usdTotal: pool.usdTotal,
@@ -218,7 +218,7 @@ const main = async () => {
                 inflation_rate: gauge.gauge_controller.inflation_rate,
                 is_killed: gauge.is_killed,
                 hasNoCrv: gauge.hasNoCrv,
-                lpTokenPrice: gauge.lpTokenPrice,
+                lpTokenPrice: gauge.lpTokenPrice || 0,
                 virtualPrice: Number(parseUnits(pool.virtualPrice.toString(), 18))
             };
 

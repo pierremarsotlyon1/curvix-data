@@ -31,6 +31,7 @@ interface IToken {
     decimals: string;
     usdPrice: number;
     symbol: string;
+    poolBalance: string;
 }
 
 interface IPoolToken {
@@ -38,6 +39,7 @@ interface IPoolToken {
     decimals: number;
     usdPrice: number;
     symbol: string;
+    poolBalance: string;
 }
 
 interface IGauge {
@@ -201,6 +203,7 @@ const main = async () => {
                         decimals: parseInt(coin.decimals),
                         symbol: coin.symbol,
                         usdPrice: coin.usdPrice,
+                        poolBalance: coin.poolBalance,
                     }
                 }),
                 usdTotal: pool.usdTotal,

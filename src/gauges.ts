@@ -65,6 +65,7 @@ type PoolDataMap = {
 }
 
 interface PoolData {
+    id: number;
     name: string;
     address: string;
     gaugeAddress: string;
@@ -79,6 +80,7 @@ interface PoolData {
     get_gauge_weight: string;
     inflation_rate: string;
     is_killed: boolean;
+    hasNoCrv: boolean;
     lpTokenPrice: number;
     virtualPrice: number;
 }
@@ -145,7 +147,8 @@ const main = async () => {
 
         const totalWeight = responses.shift().result;
 
-        for (const gauge of gauges) {
+        for (let i = 0; i < gauges.length; i++) {
+            const gauge = gauges[i];
             const pool = endpointDatas[gauge.gauge.toLowerCase()];
             if (!pool) {
                 //console.log("Gauge not found " + gauge.gauge);
@@ -154,8 +157,13 @@ const main = async () => {
 
             const name = pool.coins.map((token) => token.symbol).join("/");
             const futurWeight = responses.shift().result;
-            
-            const newWeight = BigInt(futurWeight) * 100n / (BigInt(totalWeight)/10n**18n/10n**18n);
+
+            const newWeight = BigInt(futurWeight) * 100n / (BigInt(totalWeight) / 10n ** 18n / 10n ** 18n);
+
+            if (typeof gauge.gauge_controller.inflation_rate === 'number') {
+                gauge.gauge_controller.inflation_rate = Math.floor(gauge.gauge_controller.inflation_rate).toString();
+            }
+
             const inflation = formatUnits(BigInt(gauge.gauge_controller.inflation_rate), 18);
             
             const virtualprice = formatUnits(BigInt(pool.virtualPrice), 18);
@@ -175,6 +183,7 @@ const main = async () => {
             }
 
             const poolData: PoolData = {
+                id: i,
                 name,
                 address: pool.address,
                 gaugeAddress: pool.gaugeAddress,
@@ -189,6 +198,7 @@ const main = async () => {
                 get_gauge_weight: futurWeight.toString(),
                 inflation_rate: gauge.gauge_controller.inflation_rate,
                 is_killed: gauge.is_killed,
+                hasNoCrv: gauge.hasNoCrv,
                 lpTokenPrice: gauge.lpTokenPrice,
                 virtualPrice: Number(parseUnits(pool.virtualPrice.toString(), 18))
             };

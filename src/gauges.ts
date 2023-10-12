@@ -33,6 +33,13 @@ interface IToken {
     symbol: string;
 }
 
+interface IPoolToken {
+    address: string;
+    decimals: number;
+    usdPrice: number;
+    symbol: string;
+}
+
 interface IGauge {
     gauge: string;
     side_chain: boolean;
@@ -70,7 +77,7 @@ interface PoolData {
     address: string;
     gaugeAddress: string;
     lpTokenAddress: string;
-    tokens: IToken[];
+    tokens: IPoolToken[];
     usdTotal: number;
     gaugeCrvApy: number[];
     futureGaugeCrvApy: number[];
@@ -188,7 +195,14 @@ const main = async () => {
                 address: pool.address,
                 gaugeAddress: pool.gaugeAddress,
                 lpTokenAddress: pool.lpTokenAddress,
-                tokens: pool.coins,
+                tokens: pool.coins.map((coin) => {
+                    return {
+                        address: coin.address,
+                        decimals: parseInt(coin.decimals),
+                        symbol: coin.symbol,
+                        usdPrice: coin.usdPrice,
+                    }
+                }),
                 usdTotal: pool.usdTotal,
                 gaugeCrvApy: pool.gaugeCrvApy,
                 futureGaugeCrvApy: [newMinApy, newMaxApy],

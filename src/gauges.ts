@@ -1,7 +1,7 @@
 import fs from 'fs';
 import { createPublicClient, formatUnits, http, parseAbi, parseUnits } from 'viem';
 import axios from "axios";
-import { mainnet } from 'viem/chains';
+import { base, mainnet } from 'viem/chains';
 import { RPC_URL, WEEK } from './utils/rpc';
 import { CRV_ADDRESS, CURVE_GAUGE_CONTROLLER } from './utils/addresses';
 import _ from 'underscore';
@@ -45,6 +45,7 @@ interface IPoolToken {
 
 interface IGauge {
     gauge: string;
+    swap: string;
     side_chain: boolean;
     gauge_data: {
         working_supply: string;
@@ -74,6 +75,16 @@ type PoolDataMap = {
     [gaugeAddress: string]: IPool; 
 }
 
+interface IBaseApy {
+    address: string;
+    latestDailyApy: number;
+    latestWeeklyApy: number;
+}
+
+type BaseApyMap = { 
+    [gaugeAddress: string]: IBaseApy; 
+}
+
 interface PoolData {
     id: number;
     name: string;
@@ -93,6 +104,7 @@ interface PoolData {
     hasNoCrv: boolean;
     lpTokenPrice: number;
     virtualPrice: number;
+    latestWeeklyApy: number;
 }
 
 const main = async () => {
@@ -103,7 +115,17 @@ const main = async () => {
         const currentBlock = await publicClient.getBlock();
         const currentPeriod = Math.floor(Number(currentBlock.timestamp) / WEEK) * WEEK;
 
+        // Endpoints for pools data
         const endpoints = await getEndpoints();
+        
+        // Get all chain names
+        const chains = endpoints.map((endpoint: string) => {
+            const split = endpoint.split("/");
+            return split[split.length - 2];
+        });
+
+        // Endpoint for base apys data
+        const endpointsBaseApys = chains.map((chain: string) => `https://api.curve.fi/api/getSubgraphData/${chain}`);
 
         const endpointResponses = await Promise.all(endpoints.map((endpoint: string) => axios.get(endpoint)));
         const endpointDatas = endpointResponses.reduce((acc: PoolDataMap, endpointResponse: any) => {
@@ -112,6 +134,17 @@ const main = async () => {
                     continue;
                 }
                 acc[pool.gaugeAddress.toLowerCase()] = pool;
+            }
+            return acc;
+        }, {});
+
+        const endpointsBaseApysResponses = await Promise.all(endpointsBaseApys.map((endpoint: string) => axios.get(endpoint)));
+        const endpointBaseApysDatas = endpointsBaseApysResponses.reduce((acc: BaseApyMap, endpointResponse: any) => {
+            for (const pool of endpointResponse.data.data.poolList) {
+                if (!pool.address) {
+                    continue;
+                }
+                acc[pool.address.toLowerCase()] = pool;
             }
             return acc;
         }, {});
@@ -197,6 +230,12 @@ const main = async () => {
                 newMinApy = 0;
             }
 
+            const baseApyData: IBaseApy = endpointBaseApysDatas[gauge.swap.toLowerCase()];
+            let latestWeeklyApy = 0;
+            if (baseApyData) {
+                latestWeeklyApy = baseApyData.latestWeeklyApy;
+            }
+
             const poolData: PoolData = {
                 id: i,
                 name,
@@ -224,7 +263,8 @@ const main = async () => {
                 is_killed: gauge.is_killed,
                 hasNoCrv: gauge.hasNoCrv,
                 lpTokenPrice: gauge.lpTokenPrice || 0,
-                virtualPrice: Number(parseUnits(pool.virtualPrice.toString(), 18))
+                virtualPrice: Number(parseUnits(pool.virtualPrice.toString(), 18)),
+                latestWeeklyApy
             };
 
             const path = `./data/gauges/${pool.gaugeAddress.toLowerCase()}.json`;

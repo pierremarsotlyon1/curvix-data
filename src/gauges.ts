@@ -26,6 +26,8 @@ const getEndpoints = async (): Promise<string[]> => {
     return readme.match(urlRegex).filter((url: string) => url.indexOf("/getPools/") > -1);
 }
 
+const EMPTY_TOKEN_IMAGE_URL = "https://etherscan.io/images/main/empty-token.png";
+
 interface IToken {
     address: string;
     decimals: string;
@@ -249,13 +251,13 @@ const main = async () => {
                     try {
                         const resp = await axios.get(baseImageUrl);
                         if (resp.status !== 200) {
-                            imageUrl = "";
+                            imageUrl = EMPTY_TOKEN_IMAGE_URL;
                         } else {
                             imageUrl = baseImageUrl;
                         }
                     }
                     catch (e) {
-                        imageUrl = "";
+                        imageUrl = EMPTY_TOKEN_IMAGE_URL;
                     }
 
                     mapTokenUrls[baseImageUrl] = imageUrl;

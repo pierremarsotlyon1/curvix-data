@@ -192,6 +192,11 @@ const main = async () => {
                 pool.gaugeCrvApy = [0, 0];
             }
 
+            if (isNaN(newMinApy)) {
+                newMaxApy = 0;
+                newMinApy = 0;
+            }
+
             const poolData: PoolData = {
                 id: i,
                 name,

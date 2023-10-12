@@ -46,6 +46,7 @@ interface IGauge {
     };
     is_killed: boolean;
     lpTokenPrice: number;
+    hasNoCrv: boolean;
 }
 
 interface IPool {
@@ -160,10 +161,20 @@ const main = async () => {
             const virtualprice = formatUnits(BigInt(pool.virtualPrice), 18);
             const workingsupply = formatUnits(BigInt(gauge.gauge_data.working_supply), 18);
 
-            const newMaxApy = (crvData.price * parseFloat(inflation) * parseFloat(formatUnits(newWeight, 18)) * 31536000) / (parseFloat(workingsupply) * crvData.price * parseFloat(virtualprice));
-            const newMinApy = newMaxApy * 0.4;
+            let newMaxApy = (crvData.price * parseFloat(inflation) * parseFloat(formatUnits(newWeight, 18)) * 31536000) / (parseFloat(workingsupply) * crvData.price * parseFloat(virtualprice));
+            let newMinApy = newMaxApy * 0.4;
 
-            pools.push({
+            if (gauge.hasNoCrv || gauge.is_killed) {
+                pool.gaugeCrvApy = [0, 0];
+                newMaxApy = 0;
+                newMinApy = 0;
+            }
+
+            if (!pool.gaugeCrvApy) {
+                pool.gaugeCrvApy = [0, 0];
+            }
+
+            const poolData: PoolData = {
                 name,
                 address: pool.address,
                 gaugeAddress: pool.gaugeAddress,
@@ -180,7 +191,7 @@ const main = async () => {
                 is_killed: gauge.is_killed,
                 lpTokenPrice: gauge.lpTokenPrice,
                 virtualPrice: Number(parseUnits(pool.virtualPrice.toString(), 18))
-            });
+            };
 
             const path = `./data/gauges/${pool.gaugeAddress.toLowerCase()}.json`;
             let initData: any = {};
@@ -197,6 +208,8 @@ const main = async () => {
                 inflation_rate: gauge.gauge_controller.inflation_rate,
             };
             fs.writeFileSync(path, JSON.stringify(initData));
+
+            pools.push(poolData);
         }
 
         fs.writeFileSync("./data/pools.json", JSON.stringify(pools));

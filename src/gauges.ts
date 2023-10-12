@@ -41,6 +41,7 @@ interface IPoolToken {
     usdPrice: number;
     symbol: string;
     poolBalance: string;
+    imageUrl: string;
 }
 
 interface IGauge {
@@ -190,6 +191,8 @@ const main = async () => {
 
         const totalWeight = responses.shift().result;
 
+        const mapTokenUrls: any = {};
+
         for (let i = 0; i < gauges.length; i++) {
             const gauge = gauges[i];
             const pool = endpointDatas[gauge.gauge.toLowerCase()];
@@ -236,22 +239,46 @@ const main = async () => {
                 latestWeeklyApy = baseApyData.latestWeeklyApy;
             }
 
+            const poolTokens: IPoolToken[] = [];
+            for (let a = 0; a < pool.coins.length; a++) {
+                const coin = pool.coins[a]
+                const baseImageUrl = `https://cdn.jsdelivr.net/gh/curvefi/curve-assets/images/assets/${coin.address.toLowerCase()}.png`;
+                let imageUrl = mapTokenUrls[baseImageUrl];
+
+                if (!imageUrl) {
+                    try {
+                        const resp = await axios.get(baseImageUrl);
+                        if (resp.status !== 200) {
+                            imageUrl = "";
+                        } else {
+                            imageUrl = baseImageUrl;
+                        }
+                    }
+                    catch (e) {
+                        imageUrl = "";
+                    }
+
+                    mapTokenUrls[baseImageUrl] = imageUrl;
+                }
+
+                poolTokens.push({
+                    id: a,
+                    address: coin.address,
+                    decimals: parseInt(coin.decimals),
+                    symbol: coin.symbol,
+                    usdPrice: coin.usdPrice || 0,
+                    poolBalance: coin.poolBalance || "",
+                    imageUrl
+                })
+            }
+
             const poolData: PoolData = {
                 id: i,
                 name,
                 address: pool.address,
                 gaugeAddress: pool.gaugeAddress,
                 lpTokenAddress: pool.lpTokenAddress,
-                tokens: pool.coins.map((coin, index) => {
-                    return {
-                        id: index,
-                        address: coin.address,
-                        decimals: parseInt(coin.decimals),
-                        symbol: coin.symbol,
-                        usdPrice: coin.usdPrice || 0,
-                        poolBalance: coin.poolBalance || "",
-                    }
-                }),
+                tokens: poolTokens,
                 usdTotal: pool.usdTotal,
                 gaugeCrvApy: pool.gaugeCrvApy,
                 futureGaugeCrvApy: [newMinApy, newMaxApy],

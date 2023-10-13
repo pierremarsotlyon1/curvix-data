@@ -5,18 +5,10 @@ import fs from "fs";
 import dotenv from "dotenv";
 import { getTokenData } from './utils/defilamma';
 import axios from "axios";
-import { RPC_URL } from './utils/rpc';
 import { CONVEX_LOCKER, CONVEX_UTILS_CONTRACT, CRV_ADDRESS, STAKEDAO_LOCKER, YEARN_LOCKER } from './utils/addresses';
+import { getRpcClient } from './utils/rpc';
 
 dotenv.config();
-
-const publicClient = createPublicClient({
-    chain: mainnet,
-    transport: http(RPC_URL),
-    batch: {
-        multicall: true
-    }
-});
 
 const abi = parseAbi([
     'function balanceOf(address owner) view returns (uint256)',
@@ -65,6 +57,11 @@ const lockersLock = async () => {
             });
         }
 
+        const publicClient = await getRpcClient();
+        if(!publicClient) {
+            throw new Error("No RPC client");
+        }
+
         const results: any[] = await publicClient.multicall({ contracts: calls });
 
         const lockersData: any[] = [];
@@ -87,6 +84,11 @@ const lockersLock = async () => {
 };
 
 const stakeDAOYield = async () => {
+    const publicClient = await getRpcClient();
+    if (!publicClient) {
+        throw new Error("No RPC client");
+    }
+
     // Stake DAO locker
     let results: any[] = await publicClient.multicall({
         contracts: [
@@ -184,6 +186,11 @@ const stakeDAOYield = async () => {
 };
 
 const convexYield = async () => {
+    const publicClient = await getRpcClient();
+    if (!publicClient) {
+        throw new Error("No RPC client");
+    }
+
     let results: any[] = await publicClient.multicall({
         contracts: [
             {

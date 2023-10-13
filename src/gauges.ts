@@ -1,19 +1,13 @@
 import fs from 'fs';
-import { createPublicClient, formatUnits, http, parseAbi, parseUnits } from 'viem';
+import { formatUnits, parseAbi, parseUnits } from 'viem';
 import axios from "axios";
-import { base, mainnet } from 'viem/chains';
-import { RPC_URL, WEEK } from './utils/rpc';
+import { WEEK, getRpcClient } from './utils/rpc';
 import { CRV_ADDRESS, CURVE_GAUGE_CONTROLLER } from './utils/addresses';
 import _ from 'underscore';
 import { getTokenData } from './utils/defilamma';
+import dotenv from "dotenv";
 
-const publicClient = createPublicClient({
-    chain: mainnet,
-    transport: http(RPC_URL),
-    batch: {
-        multicall: true
-    }
-});
+dotenv.config();
 
 const abi = parseAbi([
     'function get_gauge_weight(address gauge) view returns (uint256)',
@@ -75,8 +69,8 @@ interface IPool {
     virtualPrice: string;
 }
 
-type PoolDataMap = { 
-    [gaugeAddress: string]: IPool; 
+type PoolDataMap = {
+    [gaugeAddress: string]: IPool;
 }
 
 interface IBaseApy {
@@ -85,8 +79,8 @@ interface IBaseApy {
     latestWeeklyApy: number;
 }
 
-type BaseApyMap = { 
-    [gaugeAddress: string]: IBaseApy; 
+type BaseApyMap = {
+    [gaugeAddress: string]: IBaseApy;
 }
 
 interface PoolData {
@@ -129,15 +123,22 @@ interface HistoricalTotalSupply {
 const main = async () => {
     try {
 
-        const crvData = await getTokenData(CRV_ADDRESS);
+        const publicClient = await getRpcClient();
+        if (!publicClient) {
+            console.log("No RPC found");
+            return;
+        }
 
         const currentBlock = await publicClient.getBlock();
         const blockTimestamp = Number(currentBlock.timestamp);
         const currentPeriod = Math.floor(blockTimestamp / WEEK) * WEEK;
 
+        // CRV data
+        const crvData = await getTokenData(CRV_ADDRESS);
+
         // Endpoints for pools data
         const endpoints = await getEndpoints();
-        
+
         // Get all chain names
         const chains = endpoints.map((endpoint: string) => {
             const split = endpoint.split("/");
@@ -150,7 +151,7 @@ const main = async () => {
         const endpointResponses = await Promise.all(endpoints.map((endpoint: string) => axios.get(endpoint)));
         const endpointDatas = endpointResponses.reduce((acc: PoolDataMap, endpointResponse: any) => {
             for (const pool of endpointResponse.data.data.poolData) {
-                if(!pool.gaugeAddress) {
+                if (!pool.gaugeAddress) {
                     continue;
                 }
                 acc[pool.gaugeAddress.toLowerCase()] = pool;
@@ -198,6 +199,7 @@ const main = async () => {
                 abi,
                 functionName: 'totalSupply'
             });
+
             calls.push({
                 address: pool.gaugeAddress,
                 abi,
@@ -233,8 +235,10 @@ const main = async () => {
 
             const name = pool.coins.map((token) => token.symbol).join("/");
             const futurWeight = responses.shift().result;
-            const lpTotalSupply = BigInt(responses.shift().result);
-            const gaugeTotalSupply = BigInt(responses.shift().result);
+            const lpTotalSupplyResp = responses.shift();
+            const lpTotalSupply = lpTotalSupplyResp.status === "failure" ? BigInt(0) : BigInt(lpTotalSupplyResp.result);
+            const gaugeTotalSupplyResp = responses.shift();
+            const gaugeTotalSupply = gaugeTotalSupplyResp.status === "failure" ? BigInt(0) : BigInt(gaugeTotalSupplyResp.result);
 
             const newWeight = BigInt(futurWeight) * 100n / (BigInt(totalWeight) / 10n ** 18n / 10n ** 18n);
 
@@ -243,7 +247,7 @@ const main = async () => {
             }
 
             const inflation = formatUnits(BigInt(gauge.gauge_controller.inflation_rate), 18);
-            
+
             const virtualprice = formatUnits(BigInt(pool.virtualPrice), 18);
             const workingsupply = formatUnits(BigInt(gauge.gauge_data.working_supply), 18);
 
@@ -327,50 +331,60 @@ const main = async () => {
             };
 
             const path = `./data/gauges/${pool.gaugeAddress.toLowerCase()}.json`;
-            let initData: HistoricalPoolData = {
-                futureGaugeCrvApy: [],
-                gaugeCrvApy: [],
-                gaugeTotalSupplys: [],
-                inflation_rate: "",
-                lpTotalSupplys: [],
-                newPercentage: 0,
-                newWeight: "",
-            };
+            let initData: any = {};
 
             if (fs.existsSync(path)) {
-                initData = JSON.parse(fs.readFileSync(path, "utf-8")) as HistoricalPoolData;
+                initData = JSON.parse(fs.readFileSync(path, "utf-8"));
             }
 
-            if (initData.lpTotalSupplys && initData.lpTotalSupplys.length > 0) {
-                const last = initData.lpTotalSupplys[initData.lpTotalSupplys.length - 1];
+            let historicalData = initData[currentPeriod] as HistoricalPoolData;
+            if (!historicalData) {
+                historicalData = {
+                    futureGaugeCrvApy: [],
+                    gaugeCrvApy: [],
+                    gaugeTotalSupplys: [],
+                    inflation_rate: "",
+                    lpTotalSupplys: [],
+                    newPercentage: 0,
+                    newWeight: "",
+                };
+            }
+
+            const newHistoricalLpTotalSupply: HistoricalTotalSupply = {
+                timestamp: blockTimestamp,
+                totalSupply: lpTotalSupply.toString()
+            };
+
+            if (historicalData.lpTotalSupplys.length > 0) {
+                const last = historicalData.lpTotalSupplys[historicalData.lpTotalSupplys.length - 1];
                 if (last.totalSupply !== lpTotalSupply.toString()) {
-                    initData.lpTotalSupplys.push({
-                        timestamp: blockTimestamp,
-                        totalSupply: lpTotalSupply.toString()
-                    });
+                    historicalData.lpTotalSupplys.push(newHistoricalLpTotalSupply);
                 }
+            } else {
+                historicalData.lpTotalSupplys.push(newHistoricalLpTotalSupply);
             }
 
-            if (initData.gaugeTotalSupplys && initData.gaugeTotalSupplys.length > 0) {
-                const last = initData.gaugeTotalSupplys[initData.gaugeTotalSupplys.length - 1];
+            const newHistoricalGaugeTotalSupply: HistoricalTotalSupply = {
+                timestamp: blockTimestamp,
+                totalSupply: gaugeTotalSupply.toString()
+            };
+            if (historicalData.gaugeTotalSupplys.length > 0) {
+                const last = historicalData.gaugeTotalSupplys[historicalData.gaugeTotalSupplys.length - 1];
                 if (last.totalSupply !== gaugeTotalSupply.toString()) {
-                    initData.gaugeTotalSupplys.push({
-                        timestamp: blockTimestamp,
-                        totalSupply: gaugeTotalSupply.toString()
-                    });
+                    historicalData.gaugeTotalSupplys.push(newHistoricalGaugeTotalSupply);
                 }
+            } else {
+                historicalData.gaugeTotalSupplys.push(newHistoricalGaugeTotalSupply);
             }
 
             const newPercentage = parseFloat(formatUnits(newWeight, 18));
-            initData[currentPeriod] = {
-                newWeight: futurWeight.toString(),
-                newPercentage,
-                gaugeCrvApy: pool.gaugeCrvApy,
-                futureGaugeCrvApy: [newMinApy, newMaxApy],
-                inflation_rate: gauge.gauge_controller.inflation_rate,
-                lpTotalSupplys: initData.lpTotalSupplys || [],
-                gaugeTotalSupplys: initData.gaugeTotalSupplys || [],
-            };
+            historicalData.newWeight = futurWeight.toString();
+            historicalData.newPercentage = newPercentage;
+            historicalData.gaugeCrvApy = pool.gaugeCrvApy;
+            historicalData.futureGaugeCrvApy = [newMinApy, newMaxApy];
+            historicalData.inflation_rate = gauge.gauge_controller.inflation_rate;
+            initData[currentPeriod] = historicalData;
+
             fs.writeFileSync(path, JSON.stringify(initData));
 
             pools.push(poolData);

@@ -1,3 +1,14 @@
-const r = require("./data/pools.json");
+const fs = require("fs");
 
-console.log(r.filter((m) => m.latestWeeklyApy === null || m.latestWeeklyApy === undefined))
+const files = fs.readdirSync("./data/gauges");
+
+for(const file of files) {
+    const data = JSON.parse(fs.readFileSync("./data/gauges/"+file));
+
+    for(const key of Object.keys(data)) {
+        data[key].lpTotalSupplys = [];
+        data[key].gaugeTotalSupplys = [];
+    }
+
+    fs.writeFileSync("./data/gauges/"+file, JSON.stringify(data));
+}

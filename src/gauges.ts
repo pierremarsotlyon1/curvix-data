@@ -18,6 +18,7 @@ const publicClient = createPublicClient({
 const abi = parseAbi([
     'function get_gauge_weight(address gauge) view returns (uint256)',
     'function get_total_weight() view returns (uint256)',
+    'function totalSupply() view returns (uint256)',
 ]);
 
 const getEndpoints = async (): Promise<string[]> => {
@@ -110,13 +111,29 @@ interface PoolData {
     latestWeeklyApy: number;
 }
 
+interface HistoricalPoolData {
+    newWeight: string;
+    newPercentage: number;
+    gaugeCrvApy: number[];
+    futureGaugeCrvApy: number[];
+    inflation_rate: string;
+    lpTotalSupplys: HistoricalTotalSupply[];
+    gaugeTotalSupplys: HistoricalTotalSupply[];
+}
+
+interface HistoricalTotalSupply {
+    timestamp: number;
+    totalSupply: string;
+}
+
 const main = async () => {
     try {
 
         const crvData = await getTokenData(CRV_ADDRESS);
 
         const currentBlock = await publicClient.getBlock();
-        const currentPeriod = Math.floor(Number(currentBlock.timestamp) / WEEK) * WEEK;
+        const blockTimestamp = Number(currentBlock.timestamp);
+        const currentPeriod = Math.floor(blockTimestamp / WEEK) * WEEK;
 
         // Endpoints for pools data
         const endpoints = await getEndpoints();
@@ -176,6 +193,17 @@ const main = async () => {
                 functionName: 'get_gauge_weight',
                 args: [gauge.gauge]
             });
+            calls.push({
+                address: pool.lpTokenAddress,
+                abi,
+                functionName: 'totalSupply'
+            });
+            calls.push({
+                address: pool.gaugeAddress,
+                abi,
+                functionName: 'totalSupply',
+                args: [gauge.gauge]
+            });
         }
 
         const chunks = _.chunk(calls, 50);
@@ -205,6 +233,8 @@ const main = async () => {
 
             const name = pool.coins.map((token) => token.symbol).join("/");
             const futurWeight = responses.shift().result;
+            const lpTotalSupply = BigInt(responses.shift().result);
+            const gaugeTotalSupply = BigInt(responses.shift().result);
 
             const newWeight = BigInt(futurWeight) * 100n / (BigInt(totalWeight) / 10n ** 18n / 10n ** 18n);
 
@@ -297,9 +327,38 @@ const main = async () => {
             };
 
             const path = `./data/gauges/${pool.gaugeAddress.toLowerCase()}.json`;
-            let initData: any = {};
+            let initData: HistoricalPoolData = {
+                futureGaugeCrvApy: [],
+                gaugeCrvApy: [],
+                gaugeTotalSupplys: [],
+                inflation_rate: "",
+                lpTotalSupplys: [],
+                newPercentage: 0,
+                newWeight: "",
+            };
+
             if (fs.existsSync(path)) {
-                initData = JSON.parse(fs.readFileSync(path, "utf-8"));
+                initData = JSON.parse(fs.readFileSync(path, "utf-8")) as HistoricalPoolData;
+            }
+
+            if (initData.lpTotalSupplys && initData.lpTotalSupplys.length > 0) {
+                const last = initData.lpTotalSupplys[initData.lpTotalSupplys.length - 1];
+                if (last.totalSupply !== lpTotalSupply.toString()) {
+                    initData.lpTotalSupplys.push({
+                        timestamp: blockTimestamp,
+                        totalSupply: lpTotalSupply.toString()
+                    });
+                }
+            }
+
+            if (initData.gaugeTotalSupplys && initData.gaugeTotalSupplys.length > 0) {
+                const last = initData.gaugeTotalSupplys[initData.gaugeTotalSupplys.length - 1];
+                if (last.totalSupply !== gaugeTotalSupply.toString()) {
+                    initData.gaugeTotalSupplys.push({
+                        timestamp: blockTimestamp,
+                        totalSupply: gaugeTotalSupply.toString()
+                    });
+                }
             }
 
             const newPercentage = parseFloat(formatUnits(newWeight, 18));
@@ -309,6 +368,8 @@ const main = async () => {
                 gaugeCrvApy: pool.gaugeCrvApy,
                 futureGaugeCrvApy: [newMinApy, newMaxApy],
                 inflation_rate: gauge.gauge_controller.inflation_rate,
+                lpTotalSupplys: initData.lpTotalSupplys || [],
+                gaugeTotalSupplys: initData.gaugeTotalSupplys || [],
             };
             fs.writeFileSync(path, JSON.stringify(initData));
 

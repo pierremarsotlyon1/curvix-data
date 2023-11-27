@@ -5,7 +5,7 @@ import { mainnet } from "viem/chains";
 
 dotenv.config();
 
-const RPC_URLS = [`https://eth.llamarpc.com`, "https://rpc.ankr.com/eth"];
+const RPC_URLS = [`https://eth.public-rpc.com`, "https://rpc.ankr.com/eth"];
 export const WEEK = 604800;
 
 export const getRpcClient = async (): Promise<PublicClient | null> => {
